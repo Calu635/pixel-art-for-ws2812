@@ -1,0 +1,582 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Éditeur de Pixel Art pour Matrice LED</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Styles personnalisés pour le canvas et les éléments */
+        body {
+            font-family: "Inter", sans-serif;
+            background-color: #1a202c; /* Dark background default */
+            color: #e2e8f0; /* Light text default */
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+            min-height: 100vh;
+            transition: background-color 0.3s, color 0.3s; /* Smooth transition for theme change */
+        }
+        body.light-theme {
+            background-color: #f7fafc; /* Light background */
+            color: #2d3748; /* Dark text */
+        }
+        canvas {
+            border: 2px solid #4a5568;
+            background-color: #2d3748;
+            cursor: crosshair;
+            touch-action: none; /* Prevent browser touch actions */
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+            border-radius: 10px;
+            transition: background-color 0.3s, border-color 0.3s;
+        }
+        body.light-theme canvas {
+            border-color: #cbd5e0;
+            background-color: #edf2f7;
+        }
+        .controls-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            margin-top: 20px;
+            justify-content: center;
+            width: 100%;
+            max-width: 800px;
+        }
+        .btn {
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background-color 0.2s, transform 0.1s, background-image 0.2s, color 0.2s;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+            background-image: linear-gradient(to bottom right, #4a5568, #2d3748);
+            border: 1px solid #6b7280;
+            color: #e2e8f0;
+        }
+        .btn:hover {
+            background-image: linear-gradient(to bottom right, #6b7280, #4a5568);
+            transform: translateY(-1px);
+        }
+        .btn:active {
+            transform: translateY(0);
+            box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.3);
+        }
+        body.light-theme .btn {
+            background-image: linear-gradient(to bottom right, #e2e8f0, #cbd5e0);
+            border-color: #a0aec0;
+            color: #2d3748;
+        }
+        body.light-theme .btn:hover {
+            background-image: linear-gradient(to bottom right, #cbd5e0, #a0aec0);
+        }
+        .color-picker-wrapper {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background-color: #2d3748;
+            padding: 8px 15px;
+            border-radius: 8px;
+            border: 1px solid #4a5568;
+            transition: background-color 0.3s, border-color 0.3s;
+        }
+        body.light-theme .color-picker-wrapper {
+            background-color: #edf2f7;
+            border-color: #cbd5e0;
+        }
+        input[type="color"] {
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            appearance: none;
+            width: 40px;
+            height: 40px;
+            border: none;
+            background: none;
+            cursor: pointer;
+            border-radius: 5px;
+            overflow: hidden;
+            padding: 0;
+        }
+        input[type="color"]::-webkit-color-swatch-wrapper {
+            padding: 0;
+        }
+        input[type="color"]::-webkit-color-swatch {
+            border: none;
+            border-radius: 5px;
+        }
+        input[type="color"]::-moz-color-swatch-wrapper {
+            padding: 0;
+        }
+        input[type="color"]::-moz-color-swatch {
+            border: none;
+            border-radius: 5px;
+        }
+        textarea {
+            background-color: #1a202c;
+            border: 1px solid #4a5568;
+            color: #e2e8f0;
+            padding: 15px;
+            border-radius: 8px;
+            font-family: monospace;
+            resize: vertical;
+            min-height: 150px;
+            width: 100%;
+            max-width: 800px;
+            margin-top: 20px;
+            box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.3);
+            transition: background-color 0.3s, border-color 0.3s, color 0.3s;
+        }
+        body.light-theme textarea {
+            background-color: #f7fafc;
+            border-color: #cbd5e0;
+            color: #2d3748;
+        }
+        .message-box {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: #2d3748;
+            color: #e2e8f0;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            display: none; /* Hidden by default */
+            flex-direction: column;
+            align-items: center;
+            gap: 15px;
+            border: 1px solid #4a5568;
+            transition: background-color 0.3s, border-color 0.3s, color 0.3s;
+        }
+        body.light-theme .message-box {
+            background-color: #edf2f7;
+            border-color: #cbd5e0;
+            color: #2d3748;
+        }
+        .message-box button {
+            background-color: #4a5568;
+            color: #e2e8f0;
+            padding: 8px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.2s, color 0.2s;
+        }
+        .message-box button:hover {
+            background-color: #6b7280;
+        }
+        body.light-theme .message-box button {
+            background-color: #a0aec0;
+            color: #2d3748;
+        }
+        body.light-theme .message-box button:hover {
+            background-color: #cbd5e0;
+        }
+
+        /* Styles for the color palette */
+        .color-palette {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 10px;
+            padding: 10px;
+            background-color: #2d3748;
+            border-radius: 8px;
+            border: 1px solid #4a5568;
+            transition: background-color 0.3s, border-color 0.3s;
+        }
+        body.light-theme .color-palette {
+            background-color: #edf2f7;
+            border-color: #cbd5e0;
+        }
+        .color-box {
+            width: 30px;
+            height: 30px;
+            border-radius: 5px;
+            cursor: pointer;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 2px 3px rgba(0, 0, 0, 0.2);
+            transition: transform 0.1s, border-color 0.2s;
+        }
+        .color-box:hover {
+            transform: translateY(-2px);
+            border-color: #a0aec0;
+        }
+        .color-box.selected {
+            border: 2px solid #63b3ed; /* Highlight selected color */
+            transform: scale(1.1);
+        }
+        footer {
+            margin-top: 40px;
+            padding: 10px;
+            font-size: 0.85em;
+            color: #718096; /* Gray text for footer */
+            text-align: center;
+            width: 100%;
+            max-width: 800px;
+        }
+        body.light-theme footer {
+            color: #4a5568;
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-gray-100 flex flex-col items-center p-4">
+
+    <h1 class="text-3xl font-bold mb-6 text-blue-300">Éditeur de Pixel Art pour Matrice LED (8x32)</h1>
+
+    <canvas id="pixelCanvas" class="rounded-lg shadow-lg" width="640" height="160"></canvas>
+
+    <div class="controls-container">
+        <div class="color-picker-wrapper">
+            <label for="colorPicker" class="font-semibold text-gray-300">Couleur:</label>
+            <input type="color" id="colorPicker" value="#00FF00">
+        </div>
+
+        <div class="color-palette" id="colorPalette">
+            </div>
+
+        <button id="clearButton" class="btn">Effacer tout</button>
+        <button id="generateButton" class="btn bg-green-600 hover:bg-green-700">Générer le code Adafruit</button>
+        <button id="copyButton" class="btn bg-blue-600 hover:bg-blue-700">Copier le code</button>
+        <button id="themeToggleButton" class="btn">Thème (Foncé/Clair)</button>
+    </div>
+
+    <textarea id="outputCode" readonly placeholder="Le code Adafruit généré apparaîtra ici."></textarea>
+
+    <div id="messageBox" class="message-box">
+        <p id="messageText"></p>
+        <button id="messageBoxOk">OK</button>
+    </div>
+
+    <footer class="text-gray-500">
+        <p>Ce site a été créé par un grand modèle linguistique, entraîné par Google.</p>
+    </footer>
+
+    <script>
+        // Dimensions de la matrice LED
+        const MATRIX_WIDTH = 32;
+        const MATRIX_HEIGHT = 8;
+        // Taille de chaque pixel sur le canvas
+        const PIXEL_SIZE = 20;
+        // Nombre total de pixels
+        const NUMPIXELS = MATRIX_WIDTH * MATRIX_HEIGHT;
+
+        const canvas = document.getElementById('pixelCanvas');
+        const ctx = canvas.getContext('2d');
+        const colorPicker = document.getElementById('colorPicker');
+        const colorPalette = document.getElementById('colorPalette');
+        const clearButton = document.getElementById('clearButton');
+        const generateButton = document.getElementById('generateButton');
+        const copyButton = document.getElementById('copyButton');
+        const themeToggleButton = document.getElementById('themeToggleButton');
+        const outputCode = document.getElementById('outputCode');
+        const messageBox = document.getElementById('messageBox');
+        const messageText = document.getElementById('messageText');
+        const messageBoxOk = document.getElementById('messageBoxOk');
+
+        // Initialisation de la matrice de pixels avec des couleurs noires (0x000000)
+        let pixels = Array(MATRIX_HEIGHT).fill(0).map(() => Array(MATRIX_WIDTH).fill('#000000'));
+        let isDrawing = false; // Indicateur pour le dessin continu
+
+        // Couleurs prédéfinies pour la palette
+        const predefinedColors = [
+            '#000000', // Noir
+            '#FFFFFF', // Blanc
+            '#FF0000', // Rouge
+            '#00FF00', // Vert
+            '#0000FF', // Bleu
+            '#FFFF00', // Jaune
+            '#FF00FF', // Magenta
+            '#00FFFF', // Cyan
+            '#FFA500', // Orange
+            '#800080', // Violet
+            '#A52A2A', // Marron
+            '#7CFC00'  // Vert gazon
+        ];
+
+        // Fonction pour afficher un message à l'utilisateur
+        function showMessage(message) {
+            messageText.textContent = message;
+            messageBox.style.display = 'flex';
+        }
+
+        // Gérer le clic sur le bouton OK de la boîte de message
+        messageBoxOk.addEventListener('click', () => {
+            messageBox.style.display = 'none';
+        });
+
+        /**
+         * Dessine la grille de pixels sur le canvas.
+         * Chaque pixel est représenté par un carré de PIXEL_SIZE.
+         */
+        function drawGrid() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height); // Efface tout le canvas
+            for (let r = 0; r < MATRIX_HEIGHT; r++) {
+                for (let c = 0; c < MATRIX_WIDTH; c++) {
+                    ctx.fillStyle = pixels[r][c]; // Définit la couleur de remplissage du pixel
+                    ctx.fillRect(c * PIXEL_SIZE, r * PIXEL_SIZE, PIXEL_SIZE, PIXEL_SIZE); // Dessine le pixel
+                    ctx.strokeStyle = '#374151'; // Couleur des bordures de la grille
+                    ctx.strokeRect(c * PIXEL_SIZE, r * PIXEL_SIZE, PIXEL_SIZE, PIXEL_SIZE); // Dessine la bordure du pixel
+                }
+            }
+        }
+
+        /**
+         * Obtient la position du pixel sur la grille à partir des coordonnées de la souris/touch.
+         * @param {number} clientX - Coordonnée X de l'événement.
+         * @param {number} clientY - Coordonnée Y de l'événement.
+         * @returns {{col: number, row: number} | null} - Les indices de colonne et de ligne du pixel, ou null si hors limites.
+         */
+        function getPixelCoords(clientX, clientY) {
+            const rect = canvas.getBoundingClientRect(); // Obtient la taille et la position du canvas
+            const scaleX = canvas.width / rect.width;    // Facteur d'échelle X
+            const scaleY = canvas.height / rect.height;  // Facteur d'échelle Y
+
+            // Calcule les coordonnées du clic/touch sur le canvas, en tenant compte de l'échelle
+            const x = (clientX - rect.left) * scaleX;
+            const y = (clientY - rect.top) * scaleY;
+
+            // Calcule les indices de colonne et de ligne du pixel
+            const col = Math.floor(x / PIXEL_SIZE);
+            const row = Math.floor(y / PIXEL_SIZE);
+
+            // Vérifie si les coordonnées sont dans les limites de la matrice
+            if (col >= 0 && col < MATRIX_WIDTH && row >= 0 && row < MATRIX_HEIGHT) {
+                return { col, row };
+            }
+            return null;
+        }
+
+        /**
+         * Dessine ou efface un pixel sur la matrice.
+         * @param {number} col - Indice de colonne du pixel.
+         * @param {number} row - Indice de ligne du pixel.
+         * @param {string} color - La couleur à appliquer (hexadécimal).
+         */
+        function drawPixel(col, row, color) {
+            if (col !== null && row !== null) {
+                pixels[row][col] = color; // Met à jour la couleur dans la matrice interne
+                drawGrid(); // Redessine la grille pour afficher le changement
+            }
+        }
+
+        // Événements de souris pour le dessin
+        canvas.addEventListener('mousedown', (e) => {
+            isDrawing = true;
+            const coords = getPixelCoords(e.clientX, e.clientY);
+            if (coords) {
+                drawPixel(coords.col, coords.row, colorPicker.value);
+            }
+        });
+
+        canvas.addEventListener('mousemove', (e) => {
+            if (isDrawing) {
+                const coords = getPixelCoords(e.clientX, e.clientY);
+                if (coords) {
+                    drawPixel(coords.col, coords.row, colorPicker.value);
+                }
+            }
+        });
+
+        canvas.addEventListener('mouseup', () => {
+            isDrawing = false;
+        });
+
+        canvas.addEventListener('mouseleave', () => {
+            isDrawing = false;
+        });
+
+        // Événements tactiles pour le dessin (pour les appareils mobiles)
+        canvas.addEventListener('touchstart', (e) => {
+            e.preventDefault(); // Empêche le défilement et le zoom
+            isDrawing = true;
+            const touch = e.touches[0];
+            const coords = getPixelCoords(touch.clientX, touch.clientY);
+            if (coords) {
+                drawPixel(coords.col, coords.row, colorPicker.value);
+            }
+        });
+
+        canvas.addEventListener('touchmove', (e) => {
+            e.preventDefault(); // Empêche le défilement et le zoom
+            if (isDrawing) {
+                const touch = e.touches[0];
+                const coords = getPixelCoords(touch.clientX, touch.clientY);
+                if (coords) {
+                    drawPixel(coords.col, coords.row, colorPicker.value);
+                }
+            }
+        });
+
+        canvas.addEventListener('touchend', () => {
+            isDrawing = false;
+        });
+
+        /**
+         * Convertit une couleur hexadécimale (#RRGGBB) en un entier 32 bits (0xRRGGBB).
+         * @param {string} hex - La couleur hexadécimale.
+         * @returns {string} - La représentation hexadécimale de l'entier 32 bits.
+         */
+        function hexToUint32(hex) {
+            // Supprime le '#' si présent
+            const cleanHex = hex.startsWith('#') ? hex.substring(1) : hex;
+            // Convertit en entier, puis formate en hexadécimal avec un préfixe 0x et 6 chiffres
+            return '0x' + cleanHex.toUpperCase();
+        }
+
+        /**
+         * Génère le code Adafruit compatible avec la matrice LED 8x32 en zig-zag colonne par colonne.
+         * La première colonne est lue du bas vers le haut.
+         * La deuxième colonne est lue du haut vers le bas.
+         * La troisième colonne du bas vers le haut, et ainsi de suite.
+         *
+         * Le dessin sur le canvas est de haut en bas, gauche à droite.
+         * La conversion adapte les coordonnées du canvas à cet ordre physique.
+         */
+        generateButton.addEventListener('click', () => {
+            let adafruitCode = `// Code généré pour une matrice WS2812 8x32 (256 pixels) en zig-zag colonne par colonne\n`;
+            adafruitCode += `// Colonnes paires: du bas vers le haut. Colonnes impaires: du haut vers le bas.\n`;
+            adafruitCode += `// Compatible avec la bibliothèque Adafruit NeoPixel\n\n`;
+            adafruitCode += `#include <Adafruit_NeoPixel.h>\n\n`;
+            adafruitCode += `#define PIN        6   // Broche de données pour les NeoPixels\n`;
+            adafruitCode += `#define NUMPIXELS  ${MATRIX_WIDTH * MATRIX_HEIGHT} // Nombre total de pixels\n\n`;
+            adafruitCode += `Adafruit_NeoPixel pixels(NUMPIXELS, PIN, NEO_GRB + NEO_KHZ800);\n\n`; // Correction ici
+            adafruitCode += `void setup() {\n`;
+            adafruitCode += `  pixels.begin(); // Initialise la bibliothèque NeoPixel\n`;
+            adafruitCode += `}\n\n`;
+            adafruitCode += `void loop() {\n`;
+
+            adafruitCode += `  // Définition des couleurs des pixels\n`;
+            adafruitCode += `  // Conversion du canvas (row, col) vers l'index linéaire NeoPixel selon le motif zig-zag colonne par colonne\n`;
+
+            // Tableau temporaire pour stocker les couleurs dans l'ordre linéaire Adafruit
+            let linearPixels = new Array(NUMPIXELS);
+
+            for (let col = 0; col < MATRIX_WIDTH; col++) { // Parcourt les colonnes physiques
+                if (col % 2 === 0) { // Colonne paire (0, 2, ...) -> lecture du bas vers le haut
+                    for (let row_idx_in_column = 0; row_idx_in_column < MATRIX_HEIGHT; row_idx_in_column++) {
+                        // Pour aller du bas vers le haut, la rangée du canvas est inversée
+                        const canvas_row = MATRIX_HEIGHT - 1 - row_idx_in_column;
+                        const linearIndex = col * MATRIX_HEIGHT + row_idx_in_column;
+                        linearPixels[linearIndex] = hexToUint32(pixels[canvas_row][col]);
+                    }
+                } else { // Colonne impaire (1, 3, ...) -> lecture du haut vers le bas
+                    for (let row_idx_in_column = 0; row_idx_in_column < MATRIX_HEIGHT; row_idx_in_column++) {
+                        // Pour aller du haut vers le bas, la rangée du canvas est directe
+                        const canvas_row = row_idx_in_column;
+                        const linearIndex = col * MATRIX_HEIGHT + row_idx_in_column;
+                        linearPixels[linearIndex] = hexToUint32(pixels[canvas_row][col]);
+                    }
+                }
+            }
+
+            // Générer le code Adafruit setPixelColor
+            for (let i = 0; i < NUMPIXELS; i++) {
+                adafruitCode += `  pixels.setPixelColor(${i}, ${linearPixels[i]});\n`;
+            }
+
+            adafruitCode += `  pixels.show(); // Affiche les couleurs sur les LEDs\n`;
+            adafruitCode += `  delay(100); // Petite pause (ajuster si nécessaire)\n`;
+            adafruitCode += `}\n`;
+
+            outputCode.value = adafruitCode; // Affiche le code généré dans la zone de texte
+
+            // Copier le code automatiquement après la génération
+            outputCode.select();
+            try {
+                const successful = document.execCommand('copy');
+                if (successful) {
+                    showMessage('Code généré et copié dans le presse-papiers ! Collez-le dans votre IDE Arduino.');
+                } else {
+                    showMessage('Code généré, mais impossible de copier automatiquement. Veuillez copier manuellement.');
+                }
+            } catch (err) {
+                showMessage('Erreur lors de la copie automatique: ' + err + '. Veuillez copier manuellement.');
+            }
+        });
+
+        // Effacer tout le dessin
+        clearButton.addEventListener('click', () => {
+            pixels = Array(MATRIX_HEIGHT).fill(0).map(() => Array(MATRIX_WIDTH).fill('#000000'));
+            drawGrid();
+            outputCode.value = ''; // Efface également le code généré
+        });
+
+        // Copier le code dans le presse-papiers (bouton séparé, désormais aussi appelé par generateButton)
+        copyButton.addEventListener('click', () => {
+            outputCode.select(); // Sélectionne tout le texte dans la zone de texte
+            try {
+                const successful = document.execCommand('copy');
+                if (successful) {
+                    showMessage('Code copié dans le presse-papiers !');
+                } else {
+                    showMessage('Impossible de copier le code.');
+                }
+            } catch (err) {
+                showMessage('Erreur lors de la copie: ' + err);
+            }
+        });
+
+        // Fonction pour basculer le thème
+        themeToggleButton.addEventListener('click', () => {
+            document.body.classList.toggle('light-theme');
+            // Mettre à jour la couleur du texte du label "Couleur" en fonction du thème
+            const colorLabel = document.querySelector('.color-picker-wrapper label');
+            if (document.body.classList.contains('light-theme')) {
+                colorLabel.classList.remove('text-gray-300');
+                colorLabel.classList.add('text-gray-700');
+            } else {
+                colorLabel.classList.remove('text-gray-700');
+                colorLabel.classList.add('text-gray-300');
+            }
+        });
+
+        // Initialiser la palette de couleurs prédéfinies
+        function initializeColorPalette() {
+            predefinedColors.forEach(color => {
+                const colorBox = document.createElement('div');
+                colorBox.classList.add('color-box');
+                colorBox.style.backgroundColor = color;
+                colorBox.dataset.color = color; // Stocke la couleur pour un accès facile
+                colorBox.addEventListener('click', () => {
+                    colorPicker.value = color; // Met à jour le sélecteur de couleurs
+                    updateSelectedColorBox(); // Met à jour la sélection visuelle
+                });
+                colorPalette.appendChild(colorBox);
+            });
+            updateSelectedColorBox(); // Initialiser la sélection visuelle
+        }
+
+        // Met à jour la classe 'selected' sur la boîte de couleur actuellement choisie
+        function updateSelectedColorBox() {
+            document.querySelectorAll('.color-box').forEach(box => {
+                if (box.dataset.color.toLowerCase() === colorPicker.value.toLowerCase()) {
+                    box.classList.add('selected');
+                } else {
+                    box.classList.remove('selected');
+                }
+            });
+        }
+
+        // Met à jour la sélection de la boîte de couleur lorsque le sélecteur de couleur principal change
+        colorPicker.addEventListener('input', updateSelectedColorBox);
+
+
+        // Initialiser la grille et la palette au chargement de la page
+        window.onload = () => {
+            canvas.width = MATRIX_WIDTH * PIXEL_SIZE;
+            canvas.height = MATRIX_HEIGHT * PIXEL_SIZE;
+            drawGrid();
+            initializeColorPalette();
+        };
+
+        // Gérer le redimensionnement de la fenêtre pour ajuster la taille du canvas
+        window.addEventListener('resize', () => {
+            // Pas besoin de redessiner la grille si la taille du canvas est fixe
+            // Si le canvas devait être redimensionné dynamiquement, il faudrait le faire ici
+        });
+
+    </script>
+</body>
+</html>
